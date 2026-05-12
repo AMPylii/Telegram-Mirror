@@ -1,0 +1,53 @@
+name: ⬇️ Downloader
+
+on:
+  workflow_dispatch:
+    inputs:
+      post_url:
+        description: 'لینک پست تلگرام (مثال: https://t.me/channelname/123)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4 lxml
+          sudo apt-get install -y wget p7zip-full
+
+      - name: Download file
+        run: |
+          python scripts/tg_downloader.py \
+            --url "${{ github.event.inputs.post_url }}"
+
+      - name: Check output
+        run: |
+          echo "=== Downloaded files ==="
+          find downloads/ -type f | sort
+          echo "=== Sizes ==="
+          du -sh downloads/*/* 2>/dev/null || echo "No files found"
+
+      - name: Commit to repo
+        run: |
+          git config user.name "TG Downloader Bot"
+          git config user.email "bot@tgreader.local"
+          git add downloads/
+          git status
+          git diff --staged --stat
+          git commit -m "⬇️ Downloaded from ${{ github.event.inputs.post_url }} — $(date +'%Y-%m-%d %H:%M') UTC" || echo "Nothing to commit"
+          git push
